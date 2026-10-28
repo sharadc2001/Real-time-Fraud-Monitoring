@@ -7,6 +7,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from postgres_sink import write_to_postgres
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
@@ -156,14 +157,15 @@ def main() -> None:
     print('Fraud scores are illustrative; synthetic_fraud_label is simulator ground truth.', flush=True)
     print('Existing checkpoints override --starting-offsets.', flush=True)
     query = (
-        scored.writeStream
-        .format('console')
-        .outputMode('append')
-        .option('truncate', 'false')
-        .option('numRows', 50)
-        .option('checkpointLocation', args.checkpoint)
-        .trigger(processingTime=f'{args.trigger_seconds} seconds')
-        .start()
+       scored.writeStream
+       .foreachBatch(write_to_postgres)
+       .outputMode('append')
+       .option(
+        'checkpointLocation',
+        '/home/vpcuser/realtime_ibmcloud/checkpoints/fraud_postgres'
+       )
+       .trigger(processingTime=f'{args.trigger_seconds} seconds')
+       .start()
     )
     try:
         query.awaitTermination()
