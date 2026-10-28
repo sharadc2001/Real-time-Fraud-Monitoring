@@ -396,3 +396,11 @@ Then test the database connection:
 
 <img src="images/SC7.jpg" width="800">
 
+<H3>Test the code</H3>
+
+Output from Spark
+
+<img src="images/SC8.jpg" width="800">
+
+Check Database tables
+<img src="images/SC9.jpg" width="800">
