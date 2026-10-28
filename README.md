@@ -369,6 +369,11 @@ WHERE risk_level = 'HIGH';
 
 ```
 
+| File            | Responsibility                                                                                |
+|-----------------|-----------------------------------------------------------------------------------------------|
+| `spark_consumer.py` | Reads Kafka transactions, calculates fraud scores, and manages Spark Structured Streaming |
+| `postgres_sink.py`  | Receives processed Spark batches and inserts them into PostgreSQL                         |
+
 Now the database is configured, with <a href="https://github.com/sharadc2001/Real-time-Fraud-Monitoring/blob/main/code/postgres_sink.py">postgres_sink.py</a>
 
 ```python
