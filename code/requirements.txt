@@ -1,0 +1,4 @@
+confluent-kafka>=2.5,<3
+python-dotenv>=1,<2
+pyspark>=3.5,<4
+psycopg2-binary>=2.9,<3
