@@ -407,3 +407,30 @@ Check Database tables
 
 <H2>Dashboarding with Apache Superset</H2>
 
+```text
+Open your Apache Superset web interface.
+
+Navigate to:
+
+Settings → Database Connections → + Database
+
+Depending on your Superset version, this may appear under Data → Databases.
+
+```
+Enter the following information:
+
+```text
+| Field        | Value                         |
+|--------------|-------------------------------|
+| Display Name | Fraud Monitoring PostgreSQL   |
+| Host         | PostgreSQL server hostname/IP |
+| Port         | 5432                          |
+| Database     | fraud_db                      |
+| Username | superset_reader                   |
+| Password | Your PostgreSQL password          |
+
+```
+Click Test Connection, then Connect or Save.
+
+If Superset reports that the PostgreSQL driver is missing, install psycopg2 in the Superset application environment.
+
