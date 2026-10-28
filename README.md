@@ -117,7 +117,7 @@ Once credentials and topic configuration are validated:
 ```python
 python simulator.py --rate 20 --fraud-rate 0.08
 ```
-<img src="images/SC4.jpg" width="800">
+<img src="images/SC5.jpg" width="800">
 
 Test with Spark consumer:
 
@@ -128,7 +128,7 @@ spark-submit \
   spark_consumer.py \
   --starting-offsets earliest
 ```
-<img src="images/SC5.jpg" width="800">
+<img src="images/SC4.jpg" width="800">
 The consumer should print micro-batches containing transaction identifiers, amounts, fraud scores, risk levels, and other transaction attributes.
 
 ```text
