@@ -140,3 +140,204 @@ A successful test confirms that:
 - Transactions are classified into LOW, MEDIUM, and HIGH risk.
 - Spark resumes from its checkpoint after restarting.
 ```
+<H3>Create Database Objects</H3>
+
+```text
+| PostgreSQL user   | Purpose                    | Permissions            | 
+|-------------------|----------------------------|------------------------|
+| `postgres`        | Database administration    | Superuser              |
+| `spark_writer`    | Spark Structured Streaming | SELECT, INSERT, UPDATE |
+| `superset_reader` | Apache Superset dashboards | SELECT only            |
+```
+
+<H3>Create the spark writer user</H3>
+```sql
+CREATE ROLE spark_writer
+WITH LOGIN PASSWORD 'REPLACE_WITH_STRONG_UNIQUE_PASSWORD';
+
+GRANT CONNECT ON DATABASE fraud_db TO spark_writer;
+
+GRANT USAGE ON SCHEMA fraud_monitoring TO spark_writer;
+
+GRANT SELECT, INSERT, UPDATE
+ON fraud_monitoring.transactions
+TO spark_writer;
+```
+<H3>Create the Superset read-only user</H3>
+```sql
+CREATE ROLE superset_reader
+WITH LOGIN PASSWORD 'REPLACE_WITH_ANOTHER_STRONG_PASSWORD';
+
+GRANT CONNECT ON DATABASE fraud_db TO superset_reader;
+
+GRANT USAGE ON SCHEMA fraud_monitoring TO superset_reader;
+
+GRANT SELECT ON
+    fraud_monitoring.transactions,
+    fraud_monitoring.fraud_alerts,
+    fraud_monitoring.merchant_risk_summary,
+    fraud_monitoring.vw_fraud_dashboard,
+    fraud_monitoring.vw_high_risk_transactions
+TO superset_reader;
+
+```
+
+<H3>Configure permissions for future tables</H3>
+```sql
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres
+IN SCHEMA fraud_monitoring
+GRANT SELECT ON TABLES TO superset_reader;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres
+IN SCHEMA fraud_monitoring
+GRANT SELECT, INSERT, UPDATE ON TABLES TO spark_writer;
+
+```
+<H3>Create Database</H3>
+```sql
+CREATE DATABASE fraud_db;
+CREATE SCHEMA IF NOT EXISTS fraud_monitoring;
+```
+
+<H3>Create Transaction Table</H3>
+```sql
+CREATE TABLE IF NOT EXISTS fraud_monitoring.transactions (
+    transaction_id UUID PRIMARY KEY,
+    event_time TIMESTAMPTZ NOT NULL,
+    customer_id VARCHAR(100),
+    account_id VARCHAR(100),
+    merchant_id VARCHAR(100),
+    merchant_category VARCHAR(100),
+    channel VARCHAR(50),
+    amount_inr NUMERIC(18,2) NOT NULL,
+    currency VARCHAR(10) DEFAULT 'INR',
+    city VARCHAR(100),
+    country VARCHAR(10),
+    device_id VARCHAR(100),
+    is_new_device BOOLEAN,
+    synthetic_fraud_label BOOLEAN DEFAULT FALSE,
+    synthetic_scenario VARCHAR(100),
+    fraud_score INTEGER NOT NULL DEFAULT 0
+        CHECK (fraud_score BETWEEN 0 AND 100),
+    risk_level VARCHAR(20) NOT NULL DEFAULT 'LOW'
+        CHECK (risk_level IN ('LOW', 'MEDIUM', 'HIGH')),
+    schema_version INTEGER DEFAULT 1,
+    processed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+```
+
+<H3>Create the fraud alerts table</H3>
+```sql
+CREATE TABLE IF NOT EXISTS fraud_monitoring.fraud_alerts (
+    alert_id BIGSERIAL PRIMARY KEY,
+    transaction_id UUID NOT NULL UNIQUE
+        REFERENCES fraud_monitoring.transactions(transaction_id),
+    customer_id VARCHAR(100),
+    fraud_score INTEGER,
+    risk_level VARCHAR(20),
+    alert_reason TEXT,
+    alert_status VARCHAR(30) DEFAULT 'OPEN',
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMPTZ
+);
+
+```
+
+<H3>Create merchant risk summary</H3>
+```sql
+CREATE TABLE IF NOT EXISTS fraud_monitoring.merchant_risk_summary (
+    merchant_id VARCHAR(100) PRIMARY KEY,
+    total_transactions BIGINT DEFAULT 0,
+    suspicious_transactions BIGINT DEFAULT 0,
+    total_transaction_amount NUMERIC(20,2) DEFAULT 0,
+    suspicious_amount NUMERIC(20,2) DEFAULT 0,
+    average_fraud_score NUMERIC(8,2) DEFAULT 0,
+    last_updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+<H3>Create indexes</H3>
+```sql
+CREATE INDEX IF NOT EXISTS idx_transactions_event_time
+ON fraud_monitoring.transactions(event_time DESC);
+
+CREATE INDEX IF NOT EXISTS idx_transactions_risk_level
+ON fraud_monitoring.transactions(risk_level);
+
+CREATE INDEX IF NOT EXISTS idx_transactions_customer
+ON fraud_monitoring.transactions(customer_id);
+
+CREATE INDEX IF NOT EXISTS idx_transactions_merchant
+ON fraud_monitoring.transactions(merchant_id);
+
+CREATE INDEX IF NOT EXISTS idx_alerts_status
+ON fraud_monitoring.fraud_alerts(alert_status);
+
+```
+
+<H3>Create the fraud dashboard view</H3>
+```sql
+CREATE OR REPLACE VIEW fraud_monitoring.vw_fraud_dashboard AS
+SELECT
+    DATE_TRUNC('minute', event_time) AS transaction_minute,
+    COUNT(*) AS total_transactions,
+
+    COUNT(*) FILTER (
+        WHERE risk_level = 'HIGH'
+    ) AS high_risk_transactions,
+
+    COUNT(*) FILTER (
+        WHERE risk_level = 'MEDIUM'
+    ) AS medium_risk_transactions,
+
+    COUNT(*) FILTER (
+        WHERE risk_level = 'LOW'
+    ) AS low_risk_transactions,
+
+    COUNT(*) FILTER (
+        WHERE synthetic_fraud_label = TRUE
+    ) AS simulated_fraud_transactions,
+
+    SUM(amount_inr) AS total_transaction_amount,
+    AVG(fraud_score) AS average_fraud_score
+
+FROM fraud_monitoring.transactions
+GROUP BY DATE_TRUNC('minute', event_time);
+
+```
+
+<H3>Create the high-risk transactions view</H3>
+
+```sql
+CREATE OR REPLACE VIEW fraud_monitoring.vw_high_risk_transactions AS
+SELECT
+    transaction_id,
+    event_time,
+    customer_id,
+    merchant_id,
+    merchant_category,
+    channel,
+    amount_inr,
+    city,
+    country,
+    fraud_score,
+    risk_level,
+    synthetic_fraud_label,
+    synthetic_scenario
+FROM fraud_monitoring.transactions
+WHERE risk_level = 'HIGH';
+
+```
+<H3>Switch to the correct database</H3>
+
+```sql
+\c fraud_db
+```
+
+<H3>Verify your tables and views</H3>
+```sql
+\dt fraud_monitoring.*
+
+\dv fraud_monitoring.*
+```
