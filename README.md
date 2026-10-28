@@ -369,7 +369,7 @@ WHERE risk_level = 'HIGH';
 
 ```
 
-Now the database is configured, modify Spark command to add Postgresql database configuration
+Now the database is configured, with <a href="https://github.com/sharadc2001/Real-time-Fraud-Monitoring/blob/main/code/postgres_sink.py">postgres_sink.py</a>
 
 ```python
 spark-submit \
@@ -386,4 +386,8 @@ Install postgres python driver
 ```python
 python -m pip install psycopg2-binary
 ```
+
+Then test the database connection:
+
+<img src="images/SC7.jpg" width="800">
 
