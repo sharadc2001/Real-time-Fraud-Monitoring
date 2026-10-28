@@ -68,3 +68,41 @@ Generate five sample transactions without connecting to IBM Cloud:
 python simulator.py --dry-run --count 5
 ```
 
+<img src="images/SC2.jpg" width="800">
+
+
+After configuring your Event Streams credentials in .env, start publishing transactions:
+
+```python
+python simulator.py --rate 20 --fraud-rate 0.08
+```
+
+This generates approximately 20 transactions per second, with 8% assigned synthetic fraud labels.
+
+The Spark pipeline then processes the transactions and stores scored results for Superset.
+
+<H3>Step 2: Configure IBM Event Streams</H3>
+
+Use your existing Event Streams instance.
+
+Create or confirm the Kafka topic:
+
+<pre><code>bank.transactions</code></pre>
+
+The simulator must use the broker endpoints and **SASL/TLS** authentication settings from your **Event Streams service** credentials.
+
+For IBM Event Streams on IBM Cloud, the usual Kafka authentication mechanism is **SASL_SSL with PLAIN**, using the **API key as the password**. The username is typically token.
+
+Keep credentials in your local **.env** file and never commit them to Git.
+
+<img src="images/SC3.jpg" width="800">
+
+<H3>Step 3: Start the simulator</H3>
+
+Once credentials and topic configuration are validated:
+
+```python
+python simulator.py --rate 20 --fraud-rate 0.08
+```
+
+
