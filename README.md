@@ -367,3 +367,21 @@ WHERE risk_level = 'HIGH';
 \dv fraud_monitoring.*
 
 ```
+
+Now the database is configured, modify Spark command to add Postgresql database configuration
+
+```python
+spark-submit \
+  --master "local[4]" \
+  --packages \
+org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.4,org.postgresql:postgresql:42.7.8 \
+  spark_consumer.py \
+  --starting-offsets earliest
+
+```
+
+Install postgres python driver
+
+```python
+python -m pip install psycopg2-binary
+```
