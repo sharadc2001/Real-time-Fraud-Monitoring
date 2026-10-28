@@ -404,3 +404,6 @@ Output from Spark
 
 Check Database tables
 <img src="images/SC9.jpg" width="800">
+
+<H2>Dashboarding with Apache Superset</H2>
+
