@@ -55,3 +55,16 @@ Real time fraud monitoring on IBM Cloud
                          Historical Analytics
 ```
 
+<H3>Install the Python dependencies:</H3>
+```python
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Generate five sample transactions without connecting to IBM Cloud:
+
+```python
+python simulator.py --dry-run --count 5
+```
+
