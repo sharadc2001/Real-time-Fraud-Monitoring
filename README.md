@@ -426,11 +426,382 @@ Enter the following information:
 | Host         | PostgreSQL server hostname/IP |
 | Port         | 5432                          |
 | Database     | fraud_db                      |
-| Username | superset_reader                   |
-| Password | Your PostgreSQL password          |
+| Username     | superset_reader               |
+| Password     | Your PostgreSQL password      |
 
 ```
 Click Test Connection, then Connect or Save.
 
 If Superset reports that the PostgreSQL driver is missing, install psycopg2 in the Superset application environment.
+
+<H3>Register PostgreSQL datasets</H3>
+
+```text
+
+Navigate to:
+
+Datasets → + Dataset
+
+Select:
+- Database: Fraud Monitoring PostgreSQL
+- Schema: fraud_monitoring
+- Table: transactions
+
+Click Create Dataset.
+
+```
+
+Repeat for these datasets:
+
+```text
+
+| Dataset                     | Purpose                                  |
+|-----------------------------|------------------------------------------|
+| `transactions`              | All processed banking transactions       |
+| `vw_fraud_dashboard`        | Aggregated transaction and fraud metrics |
+| `vw_high_risk_transactions` | High-risk transaction investigation      |
+| `fraud_alerts`              | Fraud alerts, once populated             |
+| `merchant_risk_summary`     | Merchant analytics, once populated       |
+
+```
+
+
+For now, prioritize transactions and vw_fraud_dashboard. Your current Spark writer populates the transaction table; the alert and merchant summary tables may still be empty.
+
+<H3>Create your first dashboard</H3>
+
+```text
+Navigate to:
+
+Dashboards → + Dashboard
+
+Set the name to:
+
+Real-Time Banking Fraud Monitoring | IBM Cloud
+
+I recommend arranging the dashboard into four sections.
+
+```
+
+**Section A — Transaction monitoring KPIs**
+
+Create four KPI charts using the transactions dataset.
+
+```text
+| KPI                     | Superset chart | Metric                                  |
+|-------------------------|----------------|-----------------------------------------|
+| Total Transactions      | Big Number     | `COUNT(*)`                              |
+| High-Risk Transactions  | Big Number     | Count filtered to `risk_level = 'HIGH'` |
+| Total Transaction Value | Big Number     | `SUM(amount_inr)`                       |
+| Average Fraud Score     | Big Number     | `AVG(fraud_score)`                      |
+```
+
+**Create the first KPI**
+
+```text
+Navigate to Charts → + Chart.
+
+Select:
+
+Dataset: fraud_monitoring.transactions
+
+Chart type: Big Number
+
+Configure:
+
+Metric: COUNT(*)
+Time Column: event_time
+Time Range: Last 24 hours
+
+Name the chart:
+
+Total Transactions
+
+Click Run, then Save.
+
+Add it to your new dashboard.
+
+Repeat for the other three metrics.
+
+```
+
+<H3>Create fraud-risk visualizations</H3>
+
+**Chart 1 — Fraud risk distribution**
+
+```text
+
+Chart type: ECharts Pie Chart or Donut Chart
+
+Dataset: transactions
+
+Configure:
+Dimension: risk_level
+Metric: COUNT(*)
+
+Expected categories:
+- LOW
+- MEDIUM
+- HIGH
+
+This chart shows the proportion of transactions assigned to each risk category.
+
+```
+
+**Chart 2 — Transaction throughput over time**
+
+```text
+
+Chart type: Time-series Line Chart
+
+Dataset: transactions
+
+Configure:
+ Time Column: event_time
+ Time Grain: Minute
+ Metric: COUNT(*)
+ Time Range: Last 1 hour
+
+This chart helps you monitor the transaction rate entering PostgreSQL.
+
+For example, if the simulator generates 20 transactions per second, the chart should reflect approximately 1,200 transactions per minute under steady-state conditions, assuming successful ingestion and no duplicates. This is a theoretical rate, not a measured result.
+
+```
+
+**Chart 3 — High-risk transactions by city**
+
+```text
+
+Chart type: Bar Chart
+
+Configure:
+  X-Axis: city
+  Metric: COUNT(*)
+  Filter: risk_level = 'HIGH'
+  Sort: Descending
+
+This helps identify locations with high volumes of suspicious transactions.
+
+Remember that transaction volume alone does not establish a higher fraud rate; for that, divide high-risk transactions by total transactions per city.
+
+```
+
+**Chart 4 — Top merchants by fraud score**
+
+```text
+
+Chart type: Bar Chart
+
+Configure:
+  X-Axis: merchant_id
+  Metric: AVG(fraud_score)
+  Sort: Descending
+  Row Limit: 10
+
+This shows merchants associated with higher average transaction risk.
+
+For more reliable comparisons, add a minimum transaction-count filter.
+
+```
+
+**Phase 5 — Create a fraud investigation table**
+
+```text
+
+This is one of the most useful components of the dashboard.
+
+Chart type: Table
+
+Dataset: transactions
+
+Select these columns:
+
+transaction_id
+event_time
+customer_id
+merchant_id
+channel
+amount_inr
+city
+country
+fraud_score
+risk_level
+synthetic_fraud_label
+synthetic_scenario
+
+Configure:
+
+Sort By: event_time
+Sort Descending: Yes
+Row Limit: 100
+
+Name it:
+
+Recent Banking Transactions
+
+Create a second table filtered by:
+
+risk_level = 'HIGH'
+
+Name it:
+
+High-Risk Transaction Investigation
+
+This gives you a practical monitoring interface for examining suspicious activity.
+
+```
+
+
+**Phase 6 — Add advanced SQL-based analytics**
+
+```text
+
+Superset's SQL Lab can help you build additional datasets.
+
+Navigate to:
+
+SQL → SQL Lab
+
+Select your PostgreSQL connection and fraud_monitoring schema.
+
+```
+
+**Query 1 — Overall fraud monitoring statistics**
+
+```sql
+SELECT
+    COUNT(*) AS total_transactions,
+
+    COUNT(*) FILTER (
+        WHERE risk_level = 'HIGH'
+    ) AS high_risk_transactions,
+
+    COUNT(*) FILTER (
+        WHERE risk_level = 'MEDIUM'
+    ) AS medium_risk_transactions,
+
+    COUNT(*) FILTER (
+        WHERE risk_level = 'LOW'
+    ) AS low_risk_transactions,
+
+    ROUND(AVG(fraud_score), 2) AS average_fraud_score,
+
+    ROUND(SUM(amount_inr), 2) AS total_transaction_value
+
+FROM fraud_monitoring.transactions;
+
+```
+
+**Query 2 — Fraud-risk trend per minute**
+
+```sql
+SELECT
+    DATE_TRUNC('minute', event_time) AS minute,
+
+    COUNT(*) AS total_transactions,
+
+    COUNT(*) FILTER (
+        WHERE risk_level = 'HIGH'
+    ) AS high_risk_transactions,
+
+    ROUND(AVG(fraud_score), 2) AS average_fraud_score
+
+FROM fraud_monitoring.transactions
+
+WHERE event_time >= NOW() - INTERVAL '1 hour'
+
+GROUP BY DATE_TRUNC('minute', event_time)
+
+ORDER BY minute DESC;
+
+```
+
+**Query 3 — High-risk merchants**
+
+```sql
+SELECT
+    merchant_id,
+
+    COUNT(*) AS total_transactions,
+
+    COUNT(*) FILTER (
+        WHERE risk_level = 'HIGH'
+    ) AS high_risk_transactions,
+
+    ROUND(AVG(fraud_score), 2) AS average_fraud_score,
+
+    ROUND(SUM(amount_inr), 2) AS transaction_value
+
+FROM fraud_monitoring.transactions
+
+GROUP BY merchant_id
+
+HAVING COUNT(*) >= 5
+
+ORDER BY high_risk_transactions DESC
+
+LIMIT 10;
+
+```
+
+**Query 4 — Fraud detection against synthetic ground truth**
+
+Because your simulator generates synthetic_fraud_label, you can evaluate the rule-based scoring engine.
+
+```sql
+SELECT
+    COUNT(*) FILTER (
+        WHERE synthetic_fraud_label = TRUE
+          AND risk_level = 'HIGH'
+    ) AS true_positives,
+
+    COUNT(*) FILTER (
+        WHERE synthetic_fraud_label = FALSE
+          AND risk_level = 'HIGH'
+    ) AS false_positives,
+
+    COUNT(*) FILTER (
+        WHERE synthetic_fraud_label = TRUE
+          AND risk_level <> 'HIGH'
+    ) AS false_negatives,
+
+    COUNT(*) FILTER (
+        WHERE synthetic_fraud_label = FALSE
+          AND risk_level <> 'HIGH'
+    ) AS true_negatives
+
+FROM fraud_monitoring.transactions
+
+WHERE synthetic_fraud_label IS NOT NULL;
+
+```
+
+This treats HIGH as the positive prediction. You can later calculate precision, recall, and F1-score.
+
+**Important:** These results evaluate your scoring rules against simulated labels, not real-world banking fraud performance.
+
+
+**Phase 7 — Enable near-real-time dashboard refresh**
+
+Since Spark continuously inserts records into PostgreSQL, configure your dashboard to refresh periodically.
+
+Open your dashboard and look for the Auto-refresh or Refresh frequency control.
+
+Depending on your Superset version and configuration, you may be able to choose intervals such as:
+
+| Refresh interval | Use case                       |
+|------------------|--------------------------------|
+| 10 seconds       | Demonstration, if supported    |
+| 30 seconds       | Near-real-time monitoring      |
+| 1 minute         | General operational monitoring |
+| 5 minutes        | Historical analytics           |
+
+I recommend starting with 30 seconds, if your installation supports it.
+
+Superset uses periodic queries rather than directly consuming Kafka events, so the dashboard is near-real-time rather than truly event-driven.
+
+Also check that Superset's chart caching settings do not prevent fresh results from appearing.
+
+
+
 
