@@ -117,6 +117,7 @@ Once credentials and topic configuration are validated:
 ```python
 python simulator.py --rate 20 --fraud-rate 0.08
 ```
+
 <img src="images/SC5.jpg" width="800">
 
 Test with Spark consumer:
@@ -128,7 +129,9 @@ spark-submit \
   spark_consumer.py \
   --starting-offsets earliest
 ```
+
 <img src="images/SC4.jpg" width="800">
+
 The consumer should print micro-batches containing transaction identifiers, amounts, fraud scores, risk levels, and other transaction attributes.
 
 ```text
@@ -151,6 +154,7 @@ A successful test confirms that:
 ```
 
 <H3>Create the spark writer user</H3>
+
 ```sql
 CREATE ROLE spark_writer
 WITH LOGIN PASSWORD 'REPLACE_WITH_STRONG_UNIQUE_PASSWORD';
@@ -163,7 +167,9 @@ GRANT SELECT, INSERT, UPDATE
 ON fraud_monitoring.transactions
 TO spark_writer;
 ```
+
 <H3>Create the Superset read-only user</H3>
+
 ```sql
 CREATE ROLE superset_reader
 WITH LOGIN PASSWORD 'REPLACE_WITH_ANOTHER_STRONG_PASSWORD';
@@ -183,6 +189,7 @@ TO superset_reader;
 ```
 
 <H3>Configure permissions for future tables</H3>
+
 ```sql
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres
 IN SCHEMA fraud_monitoring
@@ -193,14 +200,18 @@ IN SCHEMA fraud_monitoring
 GRANT SELECT, INSERT, UPDATE ON TABLES TO spark_writer;
 
 ```
+
 <H3>Create Database</H3>
+
 ```sql
 CREATE DATABASE fraud_db;
 CREATE SCHEMA IF NOT EXISTS fraud_monitoring;
 ```
 
 <H3>Create Transaction Table</H3>
+
 ```sql
+
 CREATE TABLE IF NOT EXISTS fraud_monitoring.transactions (
     transaction_id UUID PRIMARY KEY,
     event_time TIMESTAMPTZ NOT NULL,
@@ -228,7 +239,9 @@ CREATE TABLE IF NOT EXISTS fraud_monitoring.transactions (
 ```
 
 <H3>Create the fraud alerts table</H3>
+
 ```sql
+
 CREATE TABLE IF NOT EXISTS fraud_monitoring.fraud_alerts (
     alert_id BIGSERIAL PRIMARY KEY,
     transaction_id UUID NOT NULL UNIQUE
@@ -245,7 +258,9 @@ CREATE TABLE IF NOT EXISTS fraud_monitoring.fraud_alerts (
 ```
 
 <H3>Create merchant risk summary</H3>
+
 ```sql
+
 CREATE TABLE IF NOT EXISTS fraud_monitoring.merchant_risk_summary (
     merchant_id VARCHAR(100) PRIMARY KEY,
     total_transactions BIGINT DEFAULT 0,
@@ -255,10 +270,13 @@ CREATE TABLE IF NOT EXISTS fraud_monitoring.merchant_risk_summary (
     average_fraud_score NUMERIC(8,2) DEFAULT 0,
     last_updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
 ```
 
 <H3>Create indexes</H3>
+
 ```sql
+
 CREATE INDEX IF NOT EXISTS idx_transactions_event_time
 ON fraud_monitoring.transactions(event_time DESC);
 
@@ -277,7 +295,9 @@ ON fraud_monitoring.fraud_alerts(alert_status);
 ```
 
 <H3>Create the fraud dashboard view</H3>
+
 ```sql
+
 CREATE OR REPLACE VIEW fraud_monitoring.vw_fraud_dashboard AS
 SELECT
     DATE_TRUNC('minute', event_time) AS transaction_minute,
@@ -310,6 +330,7 @@ GROUP BY DATE_TRUNC('minute', event_time);
 <H3>Create the high-risk transactions view</H3>
 
 ```sql
+
 CREATE OR REPLACE VIEW fraud_monitoring.vw_high_risk_transactions AS
 SELECT
     transaction_id,
@@ -332,12 +353,17 @@ WHERE risk_level = 'HIGH';
 <H3>Switch to the correct database</H3>
 
 ```sql
+
 \c fraud_db
+
 ```
 
 <H3>Verify your tables and views</H3>
+
 ```sql
+
 \dt fraud_monitoring.*
 
 \dv fraud_monitoring.*
+
 ```
