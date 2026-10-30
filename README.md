@@ -818,6 +818,8 @@ FROM fraud_monitoring.transactions
 WHERE event_time >= NOW() - INTERVAL '5 minutes';
 ```
 
+<img src="images/SCB1.jpg" width="600">
+
 Superset chart: Big Number
 
 Save the SQL query as a virtual dataset, then create a **Big Number** chart using **MAX(transactions_last_5_minutes)** as its metric.
