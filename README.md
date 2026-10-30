@@ -824,6 +824,11 @@ Superset chart: Big Number
 
 Save the SQL query as a virtual dataset, then create a **Big Number** chart using **MAX(transactions_last_5_minutes)** as its metric.
 
+| Chart       | Dataset Name                      | Chart Name                     | Chart Type             |
+|-------------|-----------------------------------|--------------------------------|------------------------|
+| **Chart 1** | `realtime_transaction_count_5min` | Transactions in Last 5 Minutes | Big Number             |
+| **Chart 2** | `realtime_transaction_throughput` | Transactions per Minute        | Time-series Line Chart |
+
 
 **Chart 2: Transactions per Minute**
 
@@ -839,6 +844,8 @@ GROUP BY 1
 ORDER BY 1;
 
 ```
+
+
 
 **Superset chart: Time-series Line Chart**
 
