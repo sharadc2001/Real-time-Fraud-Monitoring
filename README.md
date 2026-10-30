@@ -807,7 +807,7 @@ Also check that Superset's chart caching settings do not prevent fresh results f
 
 **Chart 1: Transactions in the Last 5 Minutes**
 
-Use your existing fraud_monitoring.transactions table.
+Use your existing **fraud_monitoring.transactions** table.
 
 SQL Lab query:
 
