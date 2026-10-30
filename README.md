@@ -803,5 +803,67 @@ Superset uses periodic queries rather than directly consuming Kafka events, so t
 Also check that Superset's chart caching settings do not prevent fresh results from appearing.
 
 
+<H1>Simple Use Case</H1>
+
+**Chart 1: Transactions in the Last 5 Minutes**
+
+Use your existing fraud_monitoring.transactions table.
+
+SQL Lab query:
+
+```sql
+SELECT
+    COUNT(*) AS transactions_last_5_minutes
+FROM fraud_monitoring.transactions
+WHERE event_time >= NOW() - INTERVAL '5 minutes';
+```
+
+Superset chart: Big Number
+
+Save the SQL query as a virtual dataset, then create a **Big Number** chart using **MAX(transactions_last_5_minutes)** as its metric.
+
+
+**Chart 2: Transactions per Minute**
+
+SQL Lab query:
+
+```sql
+SELECT
+    DATE_TRUNC('minute', event_time) AS transaction_minute,
+    COUNT(*) AS transaction_count
+FROM fraud_monitoring.transactions
+WHERE event_time >= NOW() - INTERVAL '15 minutes'
+GROUP BY 1
+ORDER BY 1;
+
+```
+
+**Superset chart: Time-series Line Chart**
+
+Save this query as a virtual dataset and configure:
+
+| Setting           | Value                           |
+|-------------------|---------------------------------|
+| Time column       | `transaction_minute`            |
+| Time grain        | Minute                          |
+| Metric            | `SUM(transaction_count)`        |
+| Time range        | No filter                       |
+| Dashboard refresh | 10 seconds, if supported        |
+
+Use a No filter chart-level time range because the SQL query already applies a rolling 15-minute window. Otherwise, additional time filtering may interfere with the intended results.
+
+For both charts, disable or minimize query-result caching during the lab test so refreshes return current data.
+
+<H3>How to demonstrate it</H3>
+
+Run your existing transaction simulator and Spark consumer, then open the Superset dashboard.
+
+Observe the two charts updating as transactions arrive. Stop the simulator and demonstrate how the transaction count declines as older events leave the five-minute window.
+
+This provides a straightforward demonstration of continuous ingestion and near-real-time reporting.
+
+
+
+
 
 
